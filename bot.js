@@ -33,77 +33,77 @@ if (!process.env.verify_token) {
     process.exit(1);
 }
 
-var Botkit = require('botkit');
-var debug = require('debug')('botkit:main');
-
-// Create the Botkit controller, which controls all instances of the bot.
-var controller = Botkit.facebookbot({
-    // debug: true,
+var bot_options = {
     verify_token: process.env.verify_token,
     access_token: process.env.page_token,
     studio_token: process.env.studio_token,
     studio_command_uri: process.env.studio_command_uri,
-});
+    studio_stats_uri: process.env.studio_command_uri,
+    replyWithTyping: true,
+};
 
-// Set up an Express-powered webserver to expose oauth and webhook endpoints
-var webserver = require(__dirname + '/components/express_webserver.js')(controller);
+// Use a mongo database if specified, otherwise store in a JSON file local to the app.
+// Mongo is automatically configured when deploying to Heroku
+if (process.env.MONGO_URI) {
+  // create a custom db access method
+  var db = require(__dirname + '/components/database.js')({});
+  bot_options.storage = db;
+} else {
+    bot_options.json_file_store = __dirname + '/.data/db/'; // store user data in a simple JSON format
+}
 
-// Tell Facebook to start sending events to this application
-require(__dirname + '/components/subscribe_events.js')(controller);
 
-// Set up Facebook "thread settings" such as get started button, persistent menu
-require(__dirname + '/components/thread_settings.js')(controller);
+var Botkit = require('botkit');
+var debug = require('debug')('botkit:main');
+
+var botType = process.env.bot_type;
+
+var controller = null;
+
+// Create the Botkit controller, which controls all instances of the bot.
+
+if (botType == 'facebook') { 
+    console.log ('starting facebook bot');
+    controller = Botkit.facebookbot(bot_options);
+    // Set up an Express-powered webserver to expose oauth and webhook endpoints
+    var webserver = require(__dirname + '/components/express_webserver.js')(controller, botType);
+    // Tell Facebook to start sending events to this application
+    require(__dirname + '/components/subscribe_events.js')(controller);
+    // Set up Facebook "thread settings" such as get started button, persistent menu
+    require(__dirname + '/components/thread_settings.js')(controller);
+    // Send an onboarding message when a user activates the bot
+    require(__dirname + '/components/onboarding.js')(controller);
+    // Load in some helpers that make running Botkit on Glitch.com better
+    require(__dirname + '/components/plugin_glitch.js')(controller);
+} else {
+    console.log ('starting socket bot');
+    controller = Botkit.socketbot(bot_options);
+    // Set up an Express-powered webserver to expose oauth and webhook endpoints
+    var webserver = require(__dirname + '/components/express_webserver.js')(controller, botType);
+    console.log ('starting socket bot 1');
+    // Load in some helpers that make running Botkit on Glitch.com better
+    require(__dirname + '/components/plugin_glitch.js')(controller);
+    // Load in a plugin that defines the bot's identity
+    require(__dirname + '/components/plugin_identity.js')(controller);
+    // enable advanced botkit studio metrics
+    // and capture the metrics API to use with the identity plugin!
+    controller.metrics = require('botkit-studio-metrics')(controller);
+    console.log ('starting socket bot 2');
+    // Open the web socket server
+    controller.openSocketServer(controller.httpserver);
+    console.log ('starting socket bot 3');
+    // Start the bot brain in motion!!
+    controller.startTicking();    
+    console.log ('starting socket bot 4');
+}
 
 
-// Send an onboarding message when a user activates the bot
-require(__dirname + '/components/onboarding.js')(controller);
-
-// Load in some helpers that make running Botkit on Glitch.com better
-require(__dirname + '/components/plugin_glitch.js')(controller);
-
-// enable advanced botkit studio metrics
-require('botkit-studio-metrics')(controller);
 
 var normalizedPath = require("path").join(__dirname, "skills");
 require("fs").readdirSync(normalizedPath).forEach(function(file) {
   require("./skills/" + file)(controller);
 });
 
-
-// This captures and evaluates any message sent to the bot as a DM
-// or sent to the bot in the form "@bot message" and passes it to
-// Botkit Studio to evaluate for trigger words and patterns.
-// If a trigger is matched, the conversation will automatically fire!
-// You can tie into the execution of the script using the functions
-// controller.studio.before, controller.studio.after and controller.studio.validate
-if (process.env.studio_token) {
-    controller.on('message_received,facebook_postback', function(bot, message) {
-        if (message.text) {
-            controller.studio.runTrigger(bot, message.text, message.user, message.channel, message).then(function(convo) {
-                if (!convo) {
-                    // no trigger was matched
-                    // If you want your bot to respond to every message,
-                    // define a 'fallback' script in Botkit Studio
-                    // and uncomment the line below.
-                    controller.studio.run(bot, 'fallback', message.user, message.channel, message);
-                } else {
-                    // set variables here that are needed for EVERY script
-                    // use controller.studio.before('script') to set variables specific to a script
-                    convo.setVar('current_time', new Date());
-                }
-            }).catch(function(err) {
-                if (err) {
-                    bot.reply(message, 'I experienced an error with a request to Botkit Studio: ' + err);
-                    debug('Botkit Studio: ', err);
-                }
-            });
-        }
-    });
-} else {
-    console.log('~~~~~~~~~~');
-    console.log('NOTE: Botkit Studio functionality has not been enabled');
-    console.log('To enable, pass in a studio_token parameter with a token from https://studio.botkit.ai/');
-}
 
 function usage_tip() {
     console.log('~~~~~~~~~~');
