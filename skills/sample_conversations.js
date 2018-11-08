@@ -51,7 +51,7 @@ module.exports = function(controller) {
             },'bad_response');
 
             // Create a yes/no question in the default thread...
-            convo.ask('Do you like cheese?', [
+            convo.ask('Do you like glitch?', [
                 {
                     pattern:  bot.utterances.yes,
                     callback: function(response, convo) {

@@ -28,14 +28,15 @@ module.exports = function(controller, botType) {
     webserver.use(express.static('public'));
 
     if (botType == 'facebook') { 
-        webserver.listen(process.env.PORT || 3000, null, function() {
-            debug('Express webserver configured and listening at http://localhost:' + process.env.PORT || 3000);
-        });
+        var normalizedPath = require("path").join(__dirname, "routes");       
+        require("./routes/facebook")(webserver, controller);
+        
     } else {
-        var server = http.createServer(webserver);
-        server.listen(process.env.PORT || 3000, null, function() {
-            debug('Express webserver configured and listening at http://localhost:' + process.env.PORT || 3000);
-        });
+      // import all the pre-defined routes that are present in /components/routes
+      var normalizedPath = require("path").join(__dirname, "routes");
+      fs.readdirSync(normalizedPath).forEach(function(file) {
+        require("./routes/" + file)(webserver, controller);
+      });
     }
 
     // import all the pre-defined routes that are present in /components/routes
