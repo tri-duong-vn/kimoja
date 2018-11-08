@@ -28,22 +28,25 @@ module.exports = function(controller, botType) {
     webserver.use(express.static('public'));
 
     if (botType == 'facebook') { 
-        var normalizedPath = require("path").join(__dirname, "routes");       
-        require("./routes/facebook")(webserver, controller);
-        
+        webserver.listen(process.env.PORT || 3000, null, function() {
+            debug('Express webserver configured and listening at http://localhost:' + process.env.PORT || 3000);
+        });
     } else {
-      // import all the pre-defined routes that are present in /components/routes
-      var normalizedPath = require("path").join(__dirname, "routes");
-      fs.readdirSync(normalizedPath).forEach(function(file) {
-        require("./routes/" + file)(webserver, controller);
-      });
+        var server = http.createServer(webserver);
+        server.listen(process.env.PORT || 3000, null, function() {
+            debug('Express webserver configured and listening at http://localhost:' + process.env.PORT || 3000);
+        });
     }
 
-    // import all the pre-defined routes that are present in /components/routes
-    var normalizedPath = require("path").join(__dirname, "routes");
-    fs.readdirSync(normalizedPath).forEach(function(file) {
-      require("./routes/" + file)(webserver, controller);
-    });
+    if (botType == 'facebook') { 
+        var normalizedPath = require("path").join(__dirname, "routes");
+        require("./routes/facebook" + file)(webserver, controller);
+    } else {
+        var normalizedPath = require("path").join(__dirname, "routes");
+        fs.readdirSync(normalizedPath).forEach(function(file) {
+          require("./routes/" + file)(webserver, controller);
+        });
+    }
 
     controller.webserver = webserver;
     if (botType != 'facebook') { 
