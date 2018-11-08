@@ -13,6 +13,27 @@ module.exports = function(webserver, controller) {
 
         var bot = controller.spawn({});
 
+        // log
+        var data = req.body;
+        data.entry.forEach(function(entry) {
+          var pageID = entry.id;
+          var timeOfEvent = entry.time;
+          console.log('pageID: ' + pageID + ' time: ' + timeOfEvent);
+
+          // Iterate over each messaging event
+          entry.messaging.forEach(function(event) {
+            if (event.message) {
+              console.log('message: ', event);
+            } else if (event.postback) {
+              console.log('postback: ', event);   
+            } else if (event.account_linking) {
+              console.log('account linking: ', event);
+            } else {
+              console.log("unknown event: ", event);
+            }
+          });
+        });
+
         // Now, pass the webhook into be processed
         controller.handleWebhookPayload(req, res, bot);
 
