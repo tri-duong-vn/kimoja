@@ -40,7 +40,7 @@ module.exports = function(controller, botType) {
 
     if (botType == 'facebook') { 
         var normalizedPath = require("path").join(__dirname, "routes");
-        require("./routes/facebook" + file)(webserver, controller);
+        require("./routes/facebook")(webserver, controller);
     } else {
         var normalizedPath = require("path").join(__dirname, "routes");
         fs.readdirSync(normalizedPath).forEach(function(file) {
